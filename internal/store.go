@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ type Edge struct {
 
 type Store struct {
 	mu    sync.RWMutex
+	db    *sql.DB
 	nodes map[string]*Node
 	edges map[string]*Edge
 	// adjacency: node -> edge ids
@@ -61,6 +63,9 @@ func (s *Store) UpsertNode(n Node) (*Node, error) {
 	}
 	cp.Attrs = attrs
 	s.nodes[cp.ID] = &cp
+	if err := s.persistNodeLocked(&cp); err != nil {
+		return nil, err
+	}
 	out := cp
 	out.Attrs = map[string]string{}
 	for k, v := range attrs {
@@ -95,7 +100,7 @@ func (s *Store) DeleteNode(id string, cascade bool) error {
 	delete(s.nodes, id)
 	delete(s.out, id)
 	delete(s.in, id)
-	return nil
+	return s.deleteNodeDBLocked(id)
 }
 
 func (s *Store) Search(query, kind string, limit int) []*Node {
@@ -143,6 +148,9 @@ func (s *Store) Link(fromID, toID, rel string, weight float64) (*Edge, error) {
 	s.edges[e.ID] = &e
 	s.out[fromID] = append(s.out[fromID], e.ID)
 	s.in[toID] = append(s.in[toID], e.ID)
+	if err := s.persistEdgeLocked(&e); err != nil {
+		return nil, err
+	}
 	cp := e
 	return &cp, nil
 }
@@ -165,6 +173,7 @@ func (s *Store) deleteEdgeLocked(edgeID string) {
 	s.out[e.FromID] = removeID(s.out[e.FromID], edgeID)
 	s.in[e.ToID] = removeID(s.in[e.ToID], edgeID)
 	delete(s.edges, edgeID)
+	_ = s.deleteEdgeDBLocked(edgeID)
 }
 
 func removeID(ids []string, id string) []string {
@@ -307,6 +316,16 @@ func (s *Store) Path(fromID, toID string, maxDepth int) ([]string, []Edge, bool,
 		edges = append(edges, *s.edges[eid])
 	}
 	return nodeIDs, edges, true, nil
+}
+
+func (s *Store) ListNodes() []*Node {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]*Node, 0, len(s.nodes))
+	for _, n := range s.nodes {
+		out = append(out, cloneNode(n))
+	}
+	return out
 }
 
 func cloneNode(n *Node) *Node {
