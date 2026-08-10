@@ -318,6 +318,21 @@ func (s *Store) Path(fromID, toID string, maxDepth int) ([]string, []Edge, bool,
 	return nodeIDs, edges, true, nil
 }
 
+// FindByAttr returns the first node whose attrs[key] equals value.
+func (s *Store) FindByAttr(key, value string) *Node {
+	if key == "" || value == "" {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, n := range s.nodes {
+		if n.Attrs != nil && n.Attrs[key] == value {
+			return cloneNode(n)
+		}
+	}
+	return nil
+}
+
 func (s *Store) ListNodes() []*Node {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

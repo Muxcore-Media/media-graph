@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Muxcore-Media/core/pkg/contracts"
 )
@@ -18,6 +19,12 @@ func (m *Module) Settings() []contracts.SettingDef {
 			Description: "Link same-title nodes across kinds as same_franchise; GRAPH_AUTO_LINK", Group: "Graph"},
 		{Key: "db_path", Label: "SQLite path", Type: contracts.SettingTypeString,
 			Value: m.dbPath, Description: "Durable graph DB; GRAPH_DB_PATH (restart to apply)", Group: "Graph"},
+		{Key: "ingest_enabled", Label: "Library ingest", Type: contracts.SettingTypeBool,
+			Value: fmt.Sprintf("%t", m.ingestEnabled), Default: "true",
+			Description: "Poll + event ingest from movies/TV; GRAPH_INGEST_ENABLED", Group: "Ingest"},
+		{Key: "ingest_interval", Label: "Ingest interval", Type: contracts.SettingTypeString,
+			Value: m.ingestInterval.String(), Default: "15m",
+			Description: "Poll period; GRAPH_INGEST_INTERVAL", Group: "Ingest"},
 	}
 }
 
@@ -37,6 +44,14 @@ func (m *Module) UpdateSetting(key, value string) error {
 			return fmt.Errorf("db_path must not be empty")
 		}
 		m.dbPath = value
+	case "ingest_enabled":
+		m.ingestEnabled = value == "1" || value == "true" || value == "TRUE"
+	case "ingest_interval":
+		d, err := time.ParseDuration(value)
+		if err != nil || d <= 0 {
+			return fmt.Errorf("ingest_interval must be a positive duration")
+		}
+		m.ingestInterval = d
 	default:
 		return fmt.Errorf("unknown setting %q", key)
 	}

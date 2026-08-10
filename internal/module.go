@@ -7,28 +7,45 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 
 	"github.com/Muxcore-Media/core/pkg/contracts"
+	"github.com/Muxcore-Media/core/sdk/go/client"
 	modulesdk "github.com/Muxcore-Media/core/sdk/go/module"
+	mgmntv1 "github.com/Muxcore-Media/media-movies/proto/mgmntv1"
+	tvmgmtv1 "github.com/Muxcore-Media/media-tvshows/proto/tvmgmtv1"
 	mgv1 "github.com/Muxcore-Media/media-graph/proto/gen/muxcore/mediagraph/v1"
 )
 
 type Module struct {
 	id, grpcAddr, httpAddr, defaultRel, dbPath string
 	autoLink                                   bool
+	ingestEnabled                              bool
+	ingestInterval                             time.Duration
+	ingestPageSize                             int32
 	cfgMu                                      sync.RWMutex
 	store                                      *Store
 	grpcSrv                                    *grpc.Server
 	lis                                        net.Listener
 	httpSrv                                    *http.Server
+
+	peerMu       sync.RWMutex
+	mc           *client.Client
+	moviesConn   *grpc.ClientConn
+	moviesClient mgmntv1.MovieManagementServiceClient
+	tvConn       *grpc.ClientConn
+	tvClient     tvmgmtv1.TvManagementServiceClient
 }
 
 type Config struct {
 	ID, DefaultRel, GRPCAddr, HTTPAddr, DBPath string
-	AutoLink                                   bool
+	AutoLink, IngestEnabled                    bool
+	IngestInterval                             time.Duration
+	IngestPageSize                             int32
 }
 
 func NewModule(cfg Config) *Module {
@@ -48,6 +65,13 @@ func NewModule(cfg Config) *Module {
 		cfg.DBPath = "./data/graph/graph.db"
 	}
 	cfg.AutoLink = true
+	cfg.IngestEnabled = true
+	if cfg.IngestInterval <= 0 {
+		cfg.IngestInterval = 15 * time.Minute
+	}
+	if cfg.IngestPageSize <= 0 {
+		cfg.IngestPageSize = 100
+	}
 	if v := os.Getenv("GRAPH_DEFAULT_REL"); v != "" {
 		cfg.DefaultRel = v
 	}
@@ -57,21 +81,36 @@ func NewModule(cfg Config) *Module {
 	if v := os.Getenv("GRAPH_AUTO_LINK"); v != "" {
 		cfg.AutoLink = v == "1" || v == "true" || v == "TRUE"
 	}
+	if v := os.Getenv("GRAPH_INGEST_ENABLED"); v != "" {
+		cfg.IngestEnabled = v == "1" || v == "true" || v == "TRUE"
+	}
+	if v := os.Getenv("GRAPH_INGEST_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			cfg.IngestInterval = d
+		}
+	}
+	if v := os.Getenv("GRAPH_INGEST_PAGE_SIZE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.IngestPageSize = int32(n)
+		}
+	}
 	if v := os.Getenv("MUXCORE_HTTP_ADDR"); v != "" {
 		cfg.HTTPAddr = v
 	}
 	return &Module{
 		id: cfg.ID, grpcAddr: cfg.GRPCAddr, httpAddr: cfg.HTTPAddr,
 		defaultRel: cfg.DefaultRel, dbPath: cfg.DBPath, autoLink: cfg.AutoLink,
-		store: NewStore(),
+		ingestEnabled: cfg.IngestEnabled, ingestInterval: cfg.IngestInterval,
+		ingestPageSize: cfg.IngestPageSize,
+		store:          NewStore(),
 	}
 }
 
 func (m *Module) Info() contracts.ModuleInfo {
 	return contracts.ModuleInfo{
-		ID: m.id, Name: "Media Graph", Version: "0.1.1",
+		ID: m.id, Name: "Media Graph", Version: "0.1.2",
 		Roles:        []string{"media", "graph"},
-		Description:  "Unified media graph with SQLite persistence + same-title auto-link",
+		Description:  "Unified media graph with SQLite persistence, auto-link, and library ingest",
 		Capabilities: []string{"media.graph", "graph", "settings"},
 		HTTPAddr:     m.grpcAddr,
 	}
@@ -112,6 +151,7 @@ func (m *Module) Start(ctx context.Context) error {
 			slog.Error("health serve", "error", err)
 		}
 	}()
+	m.startIngest()
 	return nil
 }
 
@@ -122,6 +162,22 @@ func (m *Module) Stop(ctx context.Context) error {
 	if m.httpSrv != nil {
 		_ = m.httpSrv.Shutdown(ctx)
 	}
+	m.peerMu.Lock()
+	if m.moviesConn != nil {
+		_ = m.moviesConn.Close()
+		m.moviesConn = nil
+		m.moviesClient = nil
+	}
+	if m.tvConn != nil {
+		_ = m.tvConn.Close()
+		m.tvConn = nil
+		m.tvClient = nil
+	}
+	if m.mc != nil {
+		_ = m.mc.Close()
+		m.mc = nil
+	}
+	m.peerMu.Unlock()
 	_ = m.store.Close()
 	return nil
 }
