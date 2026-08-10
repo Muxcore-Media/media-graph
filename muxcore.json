@@ -1,8 +1,15 @@
 {
   "id": "media-graph",
   "name": "Media Graph",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unified media graph / cross-media awareness scaffold",
-  "roles": ["media", "graph"],
-  "capabilities": ["media.graph", "graph", "settings"]
+  "roles": [
+    "media",
+    "graph"
+  ],
+  "capabilities": [
+    "media.graph",
+    "graph",
+    "settings"
+  ]
 }

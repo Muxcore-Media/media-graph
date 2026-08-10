@@ -17,16 +17,18 @@ import (
 )
 
 type Module struct {
-	id, grpcAddr, httpAddr, defaultRel string
-	cfgMu                              sync.RWMutex
-	store                              *Store
-	grpcSrv                            *grpc.Server
-	lis                                net.Listener
-	httpSrv                            *http.Server
+	id, grpcAddr, httpAddr, defaultRel, dbPath string
+	autoLink                                   bool
+	cfgMu                                      sync.RWMutex
+	store                                      *Store
+	grpcSrv                                    *grpc.Server
+	lis                                        net.Listener
+	httpSrv                                    *http.Server
 }
 
 type Config struct {
-	ID, DefaultRel, GRPCAddr, HTTPAddr string
+	ID, DefaultRel, GRPCAddr, HTTPAddr, DBPath string
+	AutoLink                                   bool
 }
 
 func NewModule(cfg Config) *Module {
@@ -42,29 +44,46 @@ func NewModule(cfg Config) *Module {
 	if cfg.DefaultRel == "" {
 		cfg.DefaultRel = "related_to"
 	}
+	if cfg.DBPath == "" {
+		cfg.DBPath = "./data/graph/graph.db"
+	}
+	cfg.AutoLink = true
 	if v := os.Getenv("GRAPH_DEFAULT_REL"); v != "" {
 		cfg.DefaultRel = v
+	}
+	if v := os.Getenv("GRAPH_DB_PATH"); v != "" {
+		cfg.DBPath = v
+	}
+	if v := os.Getenv("GRAPH_AUTO_LINK"); v != "" {
+		cfg.AutoLink = v == "1" || v == "true" || v == "TRUE"
 	}
 	if v := os.Getenv("MUXCORE_HTTP_ADDR"); v != "" {
 		cfg.HTTPAddr = v
 	}
 	return &Module{
 		id: cfg.ID, grpcAddr: cfg.GRPCAddr, httpAddr: cfg.HTTPAddr,
-		defaultRel: cfg.DefaultRel, store: NewStore(),
+		defaultRel: cfg.DefaultRel, dbPath: cfg.DBPath, autoLink: cfg.AutoLink,
+		store: NewStore(),
 	}
 }
 
 func (m *Module) Info() contracts.ModuleInfo {
 	return contracts.ModuleInfo{
-		ID: m.id, Name: "Media Graph", Version: "0.1.0",
+		ID: m.id, Name: "Media Graph", Version: "0.1.1",
 		Roles:        []string{"media", "graph"},
-		Description:  "Unified media graph / cross-media awareness (scaffold)",
+		Description:  "Unified media graph with SQLite persistence + same-title auto-link",
 		Capabilities: []string{"media.graph", "graph", "settings"},
 		HTTPAddr:     m.grpcAddr,
 	}
 }
 
-func (m *Module) Init(ctx context.Context) error { return nil }
+func (m *Module) Init(ctx context.Context) error {
+	if err := m.store.OpenDB(m.dbPath); err != nil {
+		return err
+	}
+	slog.Info("media-graph initialized", "db", m.dbPath, "nodes", len(m.store.ListNodes()), "auto_link", m.autoLink)
+	return nil
+}
 
 func (m *Module) Start(ctx context.Context) error {
 	lis, err := net.Listen("tcp", m.grpcAddr)
@@ -103,6 +122,7 @@ func (m *Module) Stop(ctx context.Context) error {
 	if m.httpSrv != nil {
 		_ = m.httpSrv.Shutdown(ctx)
 	}
+	_ = m.store.Close()
 	return nil
 }
 
@@ -118,10 +138,19 @@ func (s *graphServer) UpsertNode(_ context.Context, req *mgv1.UpsertNodeRequest)
 	if n == nil {
 		return nil, fmt.Errorf("node required")
 	}
-	out, err := s.m.store.UpsertNode(Node{
+	node := Node{
 		ID: n.GetId(), Kind: n.GetKind(), Title: n.GetTitle(),
 		ExternalID: n.GetExternalId(), Attrs: n.GetAttrs(),
-	})
+	}
+	if node.ID == "" && node.ExternalID != "" {
+		if existing := s.m.store.FindByExternalID(node.ExternalID); existing != nil {
+			node.ID = existing.ID
+		}
+	}
+	s.m.cfgMu.RLock()
+	auto := s.m.autoLink
+	s.m.cfgMu.RUnlock()
+	out, _, err := s.m.store.UpsertNodeWithAutoLink(node, auto)
 	if err != nil {
 		return nil, err
 	}
