@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package muxcore.mediagraph.v1;
+
+option go_package = "github.com/Muxcore-Media/media-graph/proto/gen/muxcore/mediagraph/v1;mediagraphv1";
+
+// MediaGraphService is a unified cross-media relationship graph.
+service MediaGraphService {
+  rpc UpsertNode(UpsertNodeRequest) returns (UpsertNodeResponse);
+  rpc GetNode(GetNodeRequest) returns (GetNodeResponse);
+  rpc DeleteNode(DeleteNodeRequest) returns (DeleteNodeResponse);
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  rpc Link(LinkRequest) returns (LinkResponse);
+  rpc Unlink(UnlinkRequest) returns (UnlinkResponse);
+  rpc Neighbors(NeighborsRequest) returns (NeighborsResponse);
+  rpc Path(PathRequest) returns (PathResponse);
+}
+
+message Node {
+  string id = 1;
+  // kind: movie | series | episode | book | comic | album | track | audiobook | person | franchise
+  string kind = 2;
+  string title = 3;
+  string external_id = 4; // e.g. tmdb:550
+  map<string, string> attrs = 5;
+}
+
+message Edge {
+  string id = 1;
+  string from_id = 2;
+  string to_id = 3;
+  // rel: adaptation_of | soundtrack_of | same_franchise | related_to | starring | authored | part_of
+  string rel = 4;
+  double weight = 5;
+}
+
+message UpsertNodeRequest { Node node = 1; }
+message UpsertNodeResponse { Node node = 1; }
+message GetNodeRequest { string id = 1; }
+message GetNodeResponse { Node node = 1; }
+message DeleteNodeRequest { string id = 1; bool cascade_edges = 2; }
+message DeleteNodeResponse { bool success = 1; }
+
+message SearchNodesRequest {
+  string query = 1;
+  string kind = 2;
+  int32 limit = 3;
+}
+message SearchNodesResponse { repeated Node nodes = 1; }
+
+message LinkRequest {
+  string from_id = 1;
+  string to_id = 2;
+  string rel = 3;
+  double weight = 4;
+}
+message LinkResponse { Edge edge = 1; }
+message UnlinkRequest { string edge_id = 1; }
+message UnlinkResponse { bool success = 1; }
+
+message NeighborsRequest {
+  string id = 1;
+  string rel = 2; // optional filter
+  int32 depth = 3; // 1 default
+}
+message NeighborsResponse {
+  Node node = 1;
+  repeated Edge edges = 2;
+  repeated Node nodes = 3;
+}
+
+message PathRequest {
+  string from_id = 1;
+  string to_id = 2;
+  int32 max_depth = 3;
+}
+message PathResponse {
+  repeated string node_ids = 1;
+  repeated Edge edges = 2;
+  bool found = 3;
+}
