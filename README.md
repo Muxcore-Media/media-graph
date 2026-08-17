@@ -2,14 +2,14 @@
 
 Unified media graph for cross-media awareness in MuxCore.
 
-Exposes `muxcore.mediagraph.v1.MediaGraphService` — nodes across media kinds (movie, book, album, …) with typed edges (`adaptation_of`, `soundtrack_of`, `same_franchise`, …), neighbor walk, and shortest path.
+Exposes `muxcore.mediagraph.v1.MediaGraphService` — nodes across media kinds (movie, book, album, …) with typed edges (`adaptation_of`, `soundtrack_of`, `same_franchise`, …), neighbor walk, shortest path, and **related titles**.
 
 ## Ports
 
 | Service | Default |
 |---------|---------|
 | gRPC | `:9730` |
-| Health | `:9731` |
+| Health + admin JSON | `:9731` |
 
 ## Env
 
@@ -23,6 +23,22 @@ Exposes `muxcore.mediagraph.v1.MediaGraphService` — nodes across media kinds (
 
 Library nodes use `external_id` `tmdb:movie:{id}` / `tmdb:tv:{id}` and attrs `movie_id` / `series_id`.
 
+## Offline fixtures
+
+`internal/testdata/library/movies_tv.json` — local movies/TV rows + franchise edges. Tests call `IngestLibraryFixtures` (no network).
+
+## Admin graph browser (JSON stub)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/graph` | node count |
+| GET | `/api/graph/nodes?kind=` | list |
+| GET | `/api/graph/node?id=` / `?external_id=` | detail |
+| GET | `/api/graph/related?id=` / `?external_id=` | related titles |
+| GET | `/api/graph/search?q=` | title search |
+
+gRPC: `GetRelatedTitles`.
+
 ## Status
 
-v0.1.2 — SQLite persistence, same-title auto-link, library auto-ingest. UI graph browser is a follow-up.
+v0.1.3 — SQLite persistence, same-title auto-link, library auto-ingest, offline fixtures, related-title query, admin JSON browser stub.

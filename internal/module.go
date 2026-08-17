@@ -108,9 +108,9 @@ func NewModule(cfg Config) *Module {
 
 func (m *Module) Info() contracts.ModuleInfo {
 	return contracts.ModuleInfo{
-		ID: m.id, Name: "Media Graph", Version: "0.1.2",
+		ID: m.id, Name: "Media Graph", Version: "0.1.3",
 		Roles:        []string{"media", "graph"},
-		Description:  "Unified media graph with SQLite persistence, auto-link, and library ingest",
+		Description:  "Unified media graph with SQLite persistence, fixture ingest, related-title query, and admin JSON browser",
 		Capabilities: []string{"media.graph", "graph", "settings"},
 		HTTPAddr:     m.grpcAddr,
 	}
@@ -144,6 +144,7 @@ func (m *Module) Start(ctx context.Context) error {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	m.registerAdminRoutes(mux)
 	m.httpSrv = &http.Server{Addr: m.httpAddr, Handler: mux}
 	go func() {
 		slog.Info("health listening", "addr", m.httpAddr)
@@ -284,6 +285,24 @@ func (s *graphServer) Path(_ context.Context, req *mgv1.PathRequest) (*mgv1.Path
 		pe = append(pe, toPBEdge(&edges[i]))
 	}
 	return &mgv1.PathResponse{NodeIds: ids, Edges: pe, Found: found}, nil
+}
+
+func (s *graphServer) GetRelatedTitles(_ context.Context, req *mgv1.GetRelatedTitlesRequest) (*mgv1.GetRelatedTitlesResponse, error) {
+	n, related, err := s.m.store.RelatedTitles(
+		req.GetId(), req.GetExternalId(), req.GetRel(),
+		int(req.GetDepth()), int(req.GetLimit()),
+	)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*mgv1.RelatedTitle, 0, len(related))
+	for i := range related {
+		rt := related[i]
+		out = append(out, &mgv1.RelatedTitle{
+			Node: toPBNode(&rt.Node), Rel: rt.Rel, Weight: rt.Weight,
+		})
+	}
+	return &mgv1.GetRelatedTitlesResponse{Node: toPBNode(n), Related: out}, nil
 }
 
 func toPBNode(n *Node) *mgv1.Node {

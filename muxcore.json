@@ -1,8 +1,8 @@
 {
   "id": "media-graph",
   "name": "Media Graph",
-  "version": "0.1.1",
-  "description": "Unified media graph / cross-media awareness scaffold",
+  "version": "0.1.3",
+  "description": "Unified media graph with fixture ingest, related titles, and admin JSON browser",
   "roles": [
     "media",
     "graph"
