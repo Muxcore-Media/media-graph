@@ -1,0 +1,90 @@
+{
+  "movies": [
+    {
+      "id": "mv_fight_club",
+      "title": "Fight Club",
+      "tmdb_id": 550,
+      "imdb_id": "tt0137523",
+      "year": 1999
+    },
+    {
+      "id": "mv_dune_2021",
+      "title": "Dune",
+      "tmdb_id": 438631,
+      "imdb_id": "tt1160419",
+      "year": 2021
+    },
+    {
+      "id": "mv_dune_part_two",
+      "title": "Dune: Part Two",
+      "tmdb_id": 693134,
+      "imdb_id": "tt15239678",
+      "year": 2024
+    },
+    {
+      "id": "mv_blade_runner_2049",
+      "title": "Blade Runner 2049",
+      "tmdb_id": 335984,
+      "imdb_id": "tt1856101",
+      "year": 2017
+    }
+  ],
+  "series": [
+    {
+      "id": "tv_breaking_bad",
+      "name": "Breaking Bad",
+      "tmdb_id": 1396,
+      "year": 2008
+    },
+    {
+      "id": "tv_better_call_saul",
+      "name": "Better Call Saul",
+      "tmdb_id": 60059,
+      "year": 2015
+    },
+    {
+      "id": "tv_dune_prophecy",
+      "name": "Dune: Prophecy",
+      "tmdb_id": 203739,
+      "year": 2024
+    },
+    {
+      "id": "tv_fight_club",
+      "name": "Fight Club",
+      "tmdb_id": 999001,
+      "year": 2019
+    }
+  ],
+  "edges": [
+    {
+      "from_external_id": "tmdb:movie:438631",
+      "to_external_id": "tmdb:movie:693134",
+      "rel": "same_franchise",
+      "weight": 1
+    },
+    {
+      "from_external_id": "tmdb:movie:438631",
+      "to_external_id": "tmdb:tv:203739",
+      "rel": "same_franchise",
+      "weight": 1
+    },
+    {
+      "from_external_id": "tmdb:movie:693134",
+      "to_external_id": "tmdb:tv:203739",
+      "rel": "same_franchise",
+      "weight": 0.9
+    },
+    {
+      "from_external_id": "tmdb:tv:1396",
+      "to_external_id": "tmdb:tv:60059",
+      "rel": "related_to",
+      "weight": 1
+    },
+    {
+      "from_external_id": "tmdb:movie:335984",
+      "to_external_id": "tmdb:movie:438631",
+      "rel": "related_to",
+      "weight": 0.5
+    }
+  ]
+}

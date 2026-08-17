@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.1.3] — 2026-08-10
+
+### Added
+- Offline movies/TV library fixtures (`internal/testdata/library`) + `IngestLibraryFixtures`
+- `GetRelatedTitles` gRPC query API (by node id or `external_id`)
+- Admin graph browser stub: HTTP/JSON `/api/graph`, `/nodes`, `/node`, `/related`, `/search`
+
 ## [v0.1.2] — 2026-08-10
 
 ### Added

@@ -14,6 +14,8 @@ service MediaGraphService {
   rpc Unlink(UnlinkRequest) returns (UnlinkResponse);
   rpc Neighbors(NeighborsRequest) returns (NeighborsResponse);
   rpc Path(PathRequest) returns (PathResponse);
+  // GetRelatedTitles returns neighboring titles for discovery / "related" UI.
+  rpc GetRelatedTitles(GetRelatedTitlesRequest) returns (GetRelatedTitlesResponse);
 }
 
 message Node {
@@ -78,4 +80,21 @@ message PathResponse {
   repeated string node_ids = 1;
   repeated Edge edges = 2;
   bool found = 3;
+}
+
+message GetRelatedTitlesRequest {
+  string id = 1;          // node id
+  string external_id = 2; // alternate lookup (e.g. tmdb:movie:550)
+  string rel = 3;         // optional relationship filter
+  int32 depth = 4;        // walk depth (default 1)
+  int32 limit = 5;        // max related titles (default 20)
+}
+message RelatedTitle {
+  Node node = 1;
+  string rel = 2;
+  double weight = 3;
+}
+message GetRelatedTitlesResponse {
+  Node node = 1;
+  repeated RelatedTitle related = 2;
 }
