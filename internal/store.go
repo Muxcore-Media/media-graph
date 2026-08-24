@@ -10,11 +10,11 @@ import (
 )
 
 type Node struct {
+	Attrs      map[string]string
 	ID         string
 	Kind       string
 	Title      string
 	ExternalID string
-	Attrs      map[string]string
 }
 
 type Edge struct {
@@ -26,13 +26,12 @@ type Edge struct {
 }
 
 type Store struct {
-	mu    sync.RWMutex
 	db    *sql.DB
 	nodes map[string]*Node
 	edges map[string]*Edge
-	// adjacency: node -> edge ids
-	out map[string][]string
-	in  map[string][]string
+	out   map[string][]string
+	in    map[string][]string
+	mu    sync.RWMutex
 }
 
 func NewStore() *Store {

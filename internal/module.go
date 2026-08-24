@@ -16,36 +16,44 @@ import (
 	"github.com/Muxcore-Media/core/pkg/contracts"
 	"github.com/Muxcore-Media/core/sdk/go/client"
 	modulesdk "github.com/Muxcore-Media/core/sdk/go/module"
+	mgv1 "github.com/Muxcore-Media/media-graph/proto/gen/muxcore/mediagraph/v1"
 	mgmntv1 "github.com/Muxcore-Media/media-movies/proto/mgmntv1"
 	tvmgmtv1 "github.com/Muxcore-Media/media-tvshows/proto/tvmgmtv1"
-	mgv1 "github.com/Muxcore-Media/media-graph/proto/gen/muxcore/mediagraph/v1"
 )
 
 type Module struct {
-	id, grpcAddr, httpAddr, defaultRel, dbPath string
-	autoLink                                   bool
-	ingestEnabled                              bool
-	ingestInterval                             time.Duration
-	ingestPageSize                             int32
-	cfgMu                                      sync.RWMutex
-	store                                      *Store
-	grpcSrv                                    *grpc.Server
-	lis                                        net.Listener
-	httpSrv                                    *http.Server
-
-	peerMu       sync.RWMutex
-	mc           *client.Client
-	moviesConn   *grpc.ClientConn
-	moviesClient mgmntv1.MovieManagementServiceClient
-	tvConn       *grpc.ClientConn
-	tvClient     tvmgmtv1.TvManagementServiceClient
+	lis            net.Listener
+	tvClient       tvmgmtv1.TvManagementServiceClient
+	moviesClient   mgmntv1.MovieManagementServiceClient
+	mc             *client.Client
+	store          *Store
+	tvConn         *grpc.ClientConn
+	moviesConn     *grpc.ClientConn
+	httpSrv        *http.Server
+	grpcSrv        *grpc.Server
+	defaultRel     string
+	dbPath         string
+	id             string
+	httpAddr       string
+	grpcAddr       string
+	ingestInterval time.Duration
+	cfgMu          sync.RWMutex
+	peerMu         sync.RWMutex
+	ingestPageSize int32
+	ingestEnabled  bool
+	autoLink       bool
 }
 
 type Config struct {
-	ID, DefaultRel, GRPCAddr, HTTPAddr, DBPath string
-	AutoLink, IngestEnabled                    bool
-	IngestInterval                             time.Duration
-	IngestPageSize                             int32
+	ID             string
+	DefaultRel     string
+	GRPCAddr       string
+	HTTPAddr       string
+	DBPath         string
+	IngestInterval time.Duration
+	IngestPageSize int32
+	AutoLink       bool
+	IngestEnabled  bool
 }
 
 func NewModule(cfg Config) *Module {
