@@ -3,10 +3,10 @@ module github.com/Muxcore-Media/media-graph
 go 1.26.5
 
 require (
-	github.com/Muxcore-Media/core v0.5.4
-	github.com/Muxcore-Media/core/pkg/contracts v0.5.4
-	github.com/Muxcore-Media/core/sdk/go/client v0.5.1
-	github.com/Muxcore-Media/core/sdk/go/module v0.5.2
+	github.com/Muxcore-Media/core v0.5.8
+	github.com/Muxcore-Media/core/pkg/contracts v0.5.8
+	github.com/Muxcore-Media/core/sdk/go/client v0.5.8
+	github.com/Muxcore-Media/core/sdk/go/module v0.5.8
 	github.com/Muxcore-Media/media-movies v0.1.9
 	github.com/Muxcore-Media/media-tvshows v0.1.9
 	github.com/google/uuid v1.6.0
