@@ -10,16 +10,16 @@ import (
 
 // LibraryFixtures is a local movies/TV dump for offline graph ingest.
 type LibraryFixtures struct {
-	Movies []FixtureMovie `json:"movies"`
+	Movies []FixtureMovie  `json:"movies"`
 	Series []FixtureSeries `json:"series"`
-	Edges  []FixtureEdge  `json:"edges"`
+	Edges  []FixtureEdge   `json:"edges"`
 }
 
 type FixtureMovie struct {
 	ID     string `json:"id"`
 	Title  string `json:"title"`
-	TMDBID int32  `json:"tmdb_id"`
 	IMDBID string `json:"imdb_id"`
+	TMDBID int32  `json:"tmdb_id"`
 	Year   int32  `json:"year"`
 }
 
