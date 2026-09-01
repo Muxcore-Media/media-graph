@@ -1,6 +1,7 @@
 package internal_test
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -12,7 +13,7 @@ func TestSQLitePersistenceAndAutoLink(t *testing.T) {
 	dbPath := filepath.Join(dir, "graph.db")
 
 	s1 := internal.NewStore()
-	if err := s1.OpenDB(dbPath); err != nil {
+	if err := s1.OpenDB(context.Background(), dbPath); err != nil {
 		t.Fatal(err)
 	}
 	movie, _, err := s1.UpsertNodeWithAutoLink(internal.Node{Kind: "movie", Title: "Dune", ExternalID: "tmdb:438631"}, true)
@@ -29,7 +30,7 @@ func TestSQLitePersistenceAndAutoLink(t *testing.T) {
 	_ = s1.Close()
 
 	s2 := internal.NewStore()
-	if err := s2.OpenDB(dbPath); err != nil {
+	if err := s2.OpenDB(context.Background(), dbPath); err != nil {
 		t.Fatal(err)
 	}
 	defer s2.Close()

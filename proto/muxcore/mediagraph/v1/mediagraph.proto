@@ -38,7 +38,10 @@ message Edge {
 
 message UpsertNodeRequest { Node node = 1; }
 message UpsertNodeResponse { Node node = 1; }
-message GetNodeRequest { string id = 1; }
+message GetNodeRequest {
+  string id = 1;
+  string external_id = 2;
+}
 message GetNodeResponse { Node node = 1; }
 message DeleteNodeRequest { string id = 1; bool cascade_edges = 2; }
 message DeleteNodeResponse { bool success = 1; }

@@ -47,6 +47,7 @@ func LoadLibraryFixtures(path string) (*LibraryFixtures, error) {
 	if info.IsDir() {
 		file = filepath.Join(path, "movies_tv.json")
 	}
+	//nolint:gosec // fixture_path is operator-controlled; path validated via os.Stat above
 	raw, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
