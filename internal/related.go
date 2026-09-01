@@ -1,6 +1,10 @@
 package internal
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 // RelatedTitle is a neighbor title with the connecting relationship.
 type RelatedTitle struct {
@@ -27,36 +31,78 @@ func (s *Store) RelatedTitles(id, externalID, rel string, depth, limit int) (*No
 	if limit <= 0 {
 		limit = 20
 	}
-	n, edges, nodes, err := s.Neighbors(id, rel, depth)
-	if err != nil {
-		return nil, nil, err
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	root, ok := s.nodes[id]
+	if !ok {
+		return nil, nil, fmt.Errorf("node %q not found", id)
 	}
-	byID := map[string]Node{}
-	for _, nn := range nodes {
-		byID[nn.ID] = nn
+
+	type best struct {
+		node   Node
+		rel    string
+		weight float64
+		depth  int
 	}
-	out := make([]RelatedTitle, 0, len(nodes))
-	seen := map[string]struct{}{}
-	for _, e := range edges {
-		other := e.ToID
-		if other == id {
-			other = e.FromID
+	found := map[string]best{}
+	frontier := []string{id}
+	seen := map[string]struct{}{id: {}}
+
+	for d := 1; d <= depth; d++ {
+		next := make([]string, 0)
+		for _, cur := range frontier {
+			for _, eid := range append(append([]string{}, s.out[cur]...), s.in[cur]...) {
+				e := s.edges[eid]
+				if rel != "" && !strings.EqualFold(e.Rel, rel) {
+					continue
+				}
+				other := e.ToID
+				if other == cur {
+					other = e.FromID
+				}
+				if other == id {
+					continue
+				}
+				on, ok := s.nodes[other]
+				if !ok {
+					continue
+				}
+				cand := best{
+					node:   *cloneNode(on),
+					rel:    e.Rel,
+					weight: e.Weight,
+					depth:  d,
+				}
+				if cand.weight == 0 {
+					cand.weight = 1
+				}
+				prev, exists := found[other]
+				if !exists || cand.weight > prev.weight || (cand.weight == prev.weight && cand.depth < prev.depth) {
+					found[other] = cand
+				}
+				if _, ok := seen[other]; !ok {
+					seen[other] = struct{}{}
+					next = append(next, other)
+				}
+			}
 		}
-		if other == id {
-			continue
-		}
-		if _, ok := seen[other]; ok {
-			continue
-		}
-		nn, ok := byID[other]
-		if !ok {
-			continue
-		}
-		seen[other] = struct{}{}
-		out = append(out, RelatedTitle{Node: nn, Rel: e.Rel, Weight: e.Weight})
-		if len(out) >= limit {
-			break
-		}
+		frontier = next
 	}
-	return n, out, nil
+
+	out := make([]RelatedTitle, 0, len(found))
+	for _, b := range found {
+		out = append(out, RelatedTitle{Node: b.node, Rel: b.rel, Weight: b.weight})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Weight != out[j].Weight {
+			return out[i].Weight > out[j].Weight
+		}
+		return out[i].Node.Title < out[j].Node.Title
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return cloneNode(root), out, nil
 }

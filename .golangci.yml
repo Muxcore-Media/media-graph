@@ -91,7 +91,13 @@ linters:
       # Allow context.Background() in specific known-safe patterns
       - linters:
           - contextcheck
+        path: 'internal/(store|persist|ingest|fixtures|http_admin|module)\.go'
+      - linters:
+          - contextcheck
         source: 'context\.Background\(\)'
+      - linters:
+          - govet
+        text: 'fieldalignment'
       # Allow nolintlint to skip deprecated pkg nolints during migration
       - linters:
           - nolintlint

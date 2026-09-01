@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -138,6 +139,16 @@ func (s *Store) Link(fromID, toID, rel string, weight float64) (*Edge, error) {
 	if _, ok := s.nodes[toID]; !ok {
 		return nil, fmt.Errorf("to node %q not found", toID)
 	}
+	if existing := s.findEdgeLocked(fromID, toID, rel); existing != nil {
+		if weight > 0 && weight != existing.Weight {
+			existing.Weight = weight
+			if err := s.persistEdgeLocked(existing); err != nil {
+				return nil, err
+			}
+		}
+		cp := *existing
+		return &cp, nil
+	}
 	e := Edge{
 		ID: "ge_" + uuid.NewString()[:8], FromID: fromID, ToID: toID, Rel: rel, Weight: weight,
 	}
@@ -152,6 +163,19 @@ func (s *Store) Link(fromID, toID, rel string, weight float64) (*Edge, error) {
 	}
 	cp := e
 	return &cp, nil
+}
+
+func (s *Store) findEdgeLocked(fromID, toID, rel string) *Edge {
+	for _, eid := range append(append([]string{}, s.out[fromID]...), s.in[fromID]...) {
+		e := s.edges[eid]
+		if !strings.EqualFold(e.Rel, rel) {
+			continue
+		}
+		if (e.FromID == fromID && e.ToID == toID) || (e.FromID == toID && e.ToID == fromID) {
+			return e
+		}
+	}
+	return nil
 }
 
 func (s *Store) Unlink(edgeID string) error {
@@ -340,6 +364,45 @@ func (s *Store) ListNodes() []*Node {
 		out = append(out, cloneNode(n))
 	}
 	return out
+}
+
+func (s *Store) ListEdges() []Edge {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]Edge, 0, len(s.edges))
+	for _, e := range s.edges {
+		out = append(out, *e)
+	}
+	return out
+}
+
+func (s *Store) EdgeCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.edges)
+}
+
+func (s *Store) NodesByKind(kind string) []*Node {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]*Node, 0)
+	for _, n := range s.nodes {
+		if kind == "" || strings.EqualFold(n.Kind, kind) {
+			out = append(out, cloneNode(n))
+		}
+	}
+	return out
+}
+
+func (s *Store) PingDB(ctx context.Context) error {
+	s.mu.RLock()
+	db := s.db
+	s.mu.RUnlock()
+	if db == nil {
+		return fmt.Errorf("database not open")
+	}
+	var one int
+	return db.QueryRowContext(ctx, `SELECT 1`).Scan(&one)
 }
 
 func cloneNode(n *Node) *Node {

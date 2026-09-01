@@ -7,7 +7,11 @@ require (
 	github.com/Muxcore-Media/core/pkg/contracts v0.5.8
 	github.com/Muxcore-Media/core/sdk/go/client v0.5.8
 	github.com/Muxcore-Media/core/sdk/go/module v0.5.8
+	github.com/Muxcore-Media/media-audiobooks v0.1.0
+	github.com/Muxcore-Media/media-books v0.2.0
+	github.com/Muxcore-Media/media-comics v0.2.0
 	github.com/Muxcore-Media/media-movies v0.1.9
+	github.com/Muxcore-Media/media-music v0.3.0
 	github.com/Muxcore-Media/media-tvshows v0.1.9
 	github.com/google/uuid v1.6.0
 	google.golang.org/grpc v1.83.0
@@ -42,3 +46,11 @@ replace github.com/Muxcore-Media/core/sdk/go/module => ../core/sdk/go/module
 replace github.com/Muxcore-Media/media-movies => ../media-movies
 
 replace github.com/Muxcore-Media/media-tvshows => ../media-tvshows
+
+replace github.com/Muxcore-Media/media-books => ../media-books
+
+replace github.com/Muxcore-Media/media-music => ../media-music
+
+replace github.com/Muxcore-Media/media-comics => ../media-comics
+
+replace github.com/Muxcore-Media/media-audiobooks => ../media-audiobooks

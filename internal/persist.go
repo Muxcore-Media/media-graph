@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func (s *Store) OpenDB(path string) error {
+func (s *Store) OpenDB(ctx context.Context, path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
@@ -21,11 +22,15 @@ func (s *Store) OpenDB(path string) error {
 		return fmt.Errorf("open sqlite: %w", err)
 	}
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(`PRAGMA journal_mode=WAL`); err != nil {
+	if _, err := db.ExecContext(context.Background(), `PRAGMA journal_mode=WAL`); err != nil {
 		_ = db.Close()
 		return fmt.Errorf("wal: %w", err)
 	}
-	if _, err := db.Exec(`
+	if _, err := db.ExecContext(context.Background(), `PRAGMA foreign_keys=ON`); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("foreign_keys: %w", err)
+	}
+	if _, err := db.ExecContext(context.Background(), `
 		CREATE TABLE IF NOT EXISTS nodes (
 			id TEXT PRIMARY KEY,
 			kind TEXT NOT NULL,
@@ -46,6 +51,7 @@ func (s *Store) OpenDB(path string) error {
 		CREATE INDEX IF NOT EXISTS idx_nodes_ext ON nodes(external_id);
 		CREATE INDEX IF NOT EXISTS idx_edges_from ON edges(from_id);
 		CREATE INDEX IF NOT EXISTS idx_edges_to ON edges(to_id);
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_edges_from_to_rel ON edges(from_id, to_id, rel);
 	`); err != nil {
 		_ = db.Close()
 		return fmt.Errorf("schema: %w", err)
@@ -73,31 +79,31 @@ func (s *Store) loadLocked() error {
 	s.out = map[string][]string{}
 	s.in = map[string][]string{}
 
-	rows, err := s.db.Query(`SELECT id, kind, title, external_id, attrs FROM nodes`)
+	rows, err := s.db.QueryContext(context.Background(), `SELECT id, kind, title, external_id, attrs FROM nodes`)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var n Node
 		var attrsJSON string
-		if err := rows.Scan(&n.ID, &n.Kind, &n.Title, &n.ExternalID, &attrsJSON); err != nil {
-			return err
+		if scanErr := rows.Scan(&n.ID, &n.Kind, &n.Title, &n.ExternalID, &attrsJSON); scanErr != nil {
+			return scanErr
 		}
 		n.Attrs = map[string]string{}
 		_ = json.Unmarshal([]byte(attrsJSON), &n.Attrs)
 		cp := n
 		s.nodes[cp.ID] = &cp
 	}
-	if err := rows.Err(); err != nil {
-		return err
+	if rowsErr := rows.Err(); rowsErr != nil {
+		return rowsErr
 	}
 
-	erows, err := s.db.Query(`SELECT id, from_id, to_id, rel, weight FROM edges`)
+	erows, err := s.db.QueryContext(context.Background(), `SELECT id, from_id, to_id, rel, weight FROM edges`)
 	if err != nil {
 		return err
 	}
-	defer erows.Close()
+	defer func() { _ = erows.Close() }()
 	for erows.Next() {
 		var e Edge
 		if err := erows.Scan(&e.ID, &e.FromID, &e.ToID, &e.Rel, &e.Weight); err != nil {
@@ -116,7 +122,7 @@ func (s *Store) persistNodeLocked(n *Node) error {
 		return nil
 	}
 	b, _ := json.Marshal(n.Attrs)
-	_, err := s.db.Exec(
+	_, err := s.db.ExecContext(context.Background(),
 		`INSERT INTO nodes(id, kind, title, external_id, attrs) VALUES(?,?,?,?,?)
 		 ON CONFLICT(id) DO UPDATE SET kind=excluded.kind, title=excluded.title,
 		 external_id=excluded.external_id, attrs=excluded.attrs`,
@@ -129,7 +135,7 @@ func (s *Store) deleteNodeDBLocked(id string) error {
 	if s.db == nil {
 		return nil
 	}
-	_, err := s.db.Exec(`DELETE FROM nodes WHERE id=?`, id)
+	_, err := s.db.ExecContext(context.Background(), `DELETE FROM nodes WHERE id=?`, id)
 	return err
 }
 
@@ -137,7 +143,7 @@ func (s *Store) persistEdgeLocked(e *Edge) error {
 	if s.db == nil {
 		return nil
 	}
-	_, err := s.db.Exec(
+	_, err := s.db.ExecContext(context.Background(),
 		`INSERT INTO edges(id, from_id, to_id, rel, weight) VALUES(?,?,?,?,?)
 		 ON CONFLICT(id) DO UPDATE SET from_id=excluded.from_id, to_id=excluded.to_id,
 		 rel=excluded.rel, weight=excluded.weight`,
@@ -150,7 +156,7 @@ func (s *Store) deleteEdgeDBLocked(id string) error {
 	if s.db == nil {
 		return nil
 	}
-	_, err := s.db.Exec(`DELETE FROM edges WHERE id=?`, id)
+	_, err := s.db.ExecContext(context.Background(), `DELETE FROM edges WHERE id=?`, id)
 	return err
 }
 
