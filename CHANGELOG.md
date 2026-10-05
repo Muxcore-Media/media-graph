@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2026-10-05
+
+### Changed
+- Dependencies resolve from published GitHub tags (core v0.6.2, media-music v0.3.0); no filesystem `replace`.
+- CI runs on GitHub-hosted runners from the umbrella template; legacy workflow directory removed.
+
 ## [v0.1.3] — 2026-08-10
 
 ### Added
