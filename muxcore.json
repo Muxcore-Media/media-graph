@@ -1,7 +1,7 @@
 {
   "id": "media-graph",
   "name": "Media Graph",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Unified media graph with fixture ingest, related titles, and admin JSON browser",
   "roles": [
     "media",

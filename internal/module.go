@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	manifest "github.com/Muxcore-Media/media-graph"
+
 	"google.golang.org/grpc"
 
 	"github.com/Muxcore-Media/core/pkg/contracts"
@@ -153,7 +155,7 @@ func NewModule(cfg Config) *Module {
 
 func (m *Module) Info() contracts.ModuleInfo {
 	return contracts.ModuleInfo{
-		ID: m.id, Name: "Media Graph", Version: "0.1.3",
+		ID: m.id, Name: "Media Graph", Version: modulesdk.ManifestVersion(manifest.ManifestJSON),
 		Roles:        []string{"media", "graph"},
 		Description:  "Unified media graph with SQLite persistence, fixture ingest, related-title query, and admin JSON browser",
 		Capabilities: []string{"media.graph", "graph", "settings"},
